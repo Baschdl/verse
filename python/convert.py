@@ -44,7 +44,8 @@ def is_numbers_only(nodes):
 
 
 def list2mat(input, undirected, sep):
-    isnumbers, node2id, number_of_nodes = map_nodes_to_ids(input, sep)
+    nodes = read_nodes_from_file(input, sep)
+    isnumbers, node2id, number_of_nodes = map_nodes_to_ids(nodes)
     graph = build_graph(input, sep, node2id, undirected, isnumbers)
     indptr = np.zeros(number_of_nodes + 1, dtype=np.int32)
     indptr[0] = 0
@@ -60,7 +61,42 @@ def list2mat(input, undirected, sep):
     return indptr[:-1], indices
 
 
-def build_graph(input, sep, node2id, undirected, isnumbers):
+def map_nodes_to_ids(nodes: set):
+    number_of_nodes = len(nodes)
+    isnumbers = is_numbers_only(nodes)
+    logging.info('Node IDs are numbers: %s', isnumbers)
+    if isnumbers:
+        node2id = dict(zip(sorted(map(int, nodes)), range(number_of_nodes)))
+    else:
+        node2id = dict(zip(sorted(nodes), range(number_of_nodes)))
+    return isnumbers, node2id, number_of_nodes
+
+
+def read_nodes_from_file(input, sep):
+    nodes = set()
+    with open(input, 'r') as inf:
+        for line in inf:
+            if line.startswith('#'):
+                continue
+            line = line.strip()
+            if sep is None:
+                splt = line.split()
+            else:
+                splt = line.split(sep)
+            if format == "edgelist":
+                if len(splt) == 3:
+                    if abs(float(splt[2]) - 1) >= 1e-4:
+                        raise ValueError("Weighted graphs are not supported")
+                    else:
+                        splt = splt[:-1]
+                else:
+                    raise ValueError("Incorrect graph format")
+            for node in splt:
+                nodes.add(node)
+    return nodes
+
+
+def build_graph(input, sep, node2id: dict, undirected, isnumbers):
     graph = defaultdict(set)
     with open(input, 'r') as inf:
         for line in inf:
@@ -86,37 +122,6 @@ def build_graph(input, sep, node2id, undirected, isnumbers):
                 if undirected:
                     graph[tgt].add(src)
     return graph
-
-
-def map_nodes_to_ids(input, sep):
-    nodes = set()
-    with open(input, 'r') as inf:
-        for line in inf:
-            if line.startswith('#'):
-                continue
-            line = line.strip()
-            if sep is None:
-                splt = line.split()
-            else:
-                splt = line.split(sep)
-            if format == "edgelist":
-                if len(splt) == 3:
-                    if abs(float(splt[2]) - 1) >= 1e-4:
-                        raise ValueError("Weighted graphs are not supported")
-                    else:
-                        splt = splt[:-1]
-                else:
-                    raise ValueError("Incorrect graph format")
-            for node in splt:
-                nodes.add(node)
-    number_of_nodes = len(nodes)
-    isnumbers = is_numbers_only(nodes)
-    logging.info('Node IDs are numbers: %s', isnumbers)
-    if isnumbers:
-        node2id = dict(zip(sorted(map(int, nodes)), range(number_of_nodes)))
-    else:
-        node2id = dict(zip(sorted(nodes), range(number_of_nodes)))
-    return isnumbers, node2id, number_of_nodes
 
 
 def process(format, matfile_variable_name, undirected, sep, input, output):
