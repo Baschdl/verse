@@ -44,6 +44,51 @@ def is_numbers_only(nodes):
 
 
 def list2mat(input, undirected, sep):
+    isnumbers, node2id, number_of_nodes = map_nodes_to_ids(input, sep)
+    graph = build_graph(input, sep, node2id, undirected, isnumbers)
+    indptr = np.zeros(number_of_nodes + 1, dtype=np.int32)
+    indptr[0] = 0
+    for i in range(number_of_nodes):
+        indptr[i + 1] = indptr[i] + len(graph[i])
+    number_of_edges = indptr[-1]
+    indices = np.zeros(number_of_edges, dtype=np.int32)
+    cur = 0
+    for node in range(number_of_nodes):
+        for adjv in sorted(graph[node]):
+            indices[cur] = adjv
+            cur += 1
+    return indptr[:-1], indices
+
+
+def build_graph(input, sep, node2id, undirected, isnumbers):
+    graph = defaultdict(set)
+    with open(input, 'r') as inf:
+        for line in inf:
+            if line.startswith('#'):
+                continue
+            line = line.strip()
+            if sep is None:
+                splt = line.split()
+            else:
+                splt = line.split(sep)
+            if isnumbers:
+                src = node2id[int(splt[0])]
+            else:
+                src = node2id[splt[0]]
+            if format == "edgelist" and len(splt) == 3:
+                splt = splt[:-1]
+            for node in splt[1:]:
+                if isnumbers:
+                    tgt = node2id[int(node)]
+                else:
+                    tgt = node2id[node]
+                graph[src].add(tgt)
+                if undirected:
+                    graph[tgt].add(src)
+    return graph
+
+
+def map_nodes_to_ids(input, sep):
     nodes = set()
     with open(input, 'r') as inf:
         for line in inf:
@@ -71,42 +116,7 @@ def list2mat(input, undirected, sep):
         node2id = dict(zip(sorted(map(int, nodes)), range(number_of_nodes)))
     else:
         node2id = dict(zip(sorted(nodes), range(number_of_nodes)))
-    graph = defaultdict(set)
-    with open(input, 'r') as inf:
-        for line in inf:
-            if line.startswith('#'):
-                continue
-            line = line.strip()
-            if sep is None:
-                splt = line.split()
-            else:
-                splt = line.split(sep)
-            if isnumbers:
-                src = node2id[int(splt[0])]
-            else:
-                src = node2id[splt[0]]
-            if format == "edgelist" and len(splt) == 3:
-                splt = splt[:-1]
-            for node in splt[1:]:
-                if isnumbers:
-                    tgt = node2id[int(node)]
-                else:
-                    tgt = node2id[node]
-                graph[src].add(tgt)
-                if undirected:
-                    graph[tgt].add(src)
-    indptr = np.zeros(number_of_nodes + 1, dtype=np.int32)
-    indptr[0] = 0
-    for i in range(number_of_nodes):
-        indptr[i + 1] = indptr[i] + len(graph[i])
-    number_of_edges = indptr[-1]
-    indices = np.zeros(number_of_edges, dtype=np.int32)
-    cur = 0
-    for node in range(number_of_nodes):
-        for adjv in sorted(graph[node]):
-            indices[cur] = adjv
-            cur += 1
-    return indptr[:-1], indices
+    return isnumbers, node2id, number_of_nodes
 
 
 def process(format, matfile_variable_name, undirected, sep, input, output):
